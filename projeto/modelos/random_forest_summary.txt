@@ -1,0 +1,37 @@
+=== Random Forest ===
+
+MAE : 88.307
+RMSE: 112.553
+R²  : 0.270
+
+=== Hiperparâmetros do Modelo ===
+{'bootstrap': True, 'ccp_alpha': 0.0, 'criterion': 'squared_error', 'max_depth': 20, 'max_features': 'sqrt', 'max_leaf_nodes': None, 'max_samples': None, 'min_impurity_decrease': 0.0, 'min_samples_leaf': 2, 'min_samples_split': 4, 'min_weight_fraction_leaf': 0.0, 'monotonic_cst': None, 'n_estimators': 300, 'n_jobs': 2, 'oob_score': False, 'random_state': 42, 'verbose': 0, 'warm_start': False}
+
+=== Importância das Variáveis ===
+ Variável  Importância
+     Q006     0.177908
+     Q024     0.105038
+     Q003     0.074321
+     Q002     0.064552
+     Q001     0.062803
+     Q004     0.052589
+     Q005     0.049947
+     Q010     0.044021
+     Q008     0.042208
+     Q022     0.036525
+     Q019     0.033232
+TP_ESCOLA     0.032586
+     Q009     0.029460
+     Q013     0.027052
+     Q016     0.021947
+     Q018     0.021543
+     Q011     0.020874
+     Q021     0.016404
+     Q014     0.016333
+     Q007     0.014669
+     Q020     0.013262
+     Q015     0.012833
+     Q023     0.010641
+     Q012     0.008691
+     Q025     0.005402
+     Q017     0.005159
