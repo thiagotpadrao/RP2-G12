@@ -9,6 +9,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+plt.style.use('default')
 
 #======================#
 # Leitura e filtragem  #
@@ -34,7 +36,7 @@ def ler_e_filtrar_dados(caminho_arquivo, variaveis_socio, variavel_alvo):
     print("\nAmostra dos dados tratados:")
     print(dados.head())
 
-    dados.to_csv('projeto/arquivos/enem2023_filtrado.csv', index=False, sep=';')
+    dados.to_csv('projeto/dados/enem2023_filtrado.csv', index=False, sep=';')
     return dados
 
 #==================================#
@@ -132,8 +134,8 @@ def preparar_dados_para_modelagem(df, variaveis_socio, variavel_alvo):
     print(X_proc.head())
     joblib.dump(imputer, 'projeto/artefatos/imputer_median_socio.joblib')
     joblib.dump(scaler, 'projeto/artefatos/scaler_socio.joblib')
-    X_proc.to_csv('projeto/arquivos/enem2023_socio_processado.csv', index=False, sep=';')
-    y.to_csv('projeto/arquivos/enem2023_nota_mt.csv', index=False, header=True, sep=';')
+    X_proc.to_csv('projeto/dados/enem2023_socio_processado.csv', index=False, sep=';')
+    y.to_csv('projeto/dados/enem2023_nota_mt.csv', index=False, header=True, sep=';')
     print("\nDados prontos!")
 
     return X_proc, y
@@ -162,6 +164,40 @@ def regressao_linear(X_train, X_test, y_train, y_test, salvar_modelo=True):
     print(f"MAE  (Erro Médio Absoluto): {mae:.3f}")
     print(f"RMSE (Raiz do Erro Quadrático Médio): {rmse:.3f}")
     print(f"R²   (Coeficiente de Determinação): {r2:.3f}")
+
+    # plots:
+     
+    # scatter: previsão vs real
+    plt.figure(figsize=(6, 6))
+    plt.scatter(y_test, y_pred, s=2)
+    plt.xlabel("Valores Reais")
+    plt.ylabel("Previsões")
+    plt.title("Regressão Linear - Previsões vs Reais")
+    plt.grid(True)
+    plt.savefig("projeto/estatisticas/regressao_linear/rl_scat_pred_vs_real.png", dpi=300)
+    plt.close()
+
+    # scatter: previsão vs resíduos
+    residuos = y_test - y_pred
+    plt.figure(figsize=(6, 6))
+    plt.scatter(y_pred, residuos, s=2)
+    plt.axhline(0, color="black")
+    plt.xlabel("Previsões")
+    plt.ylabel("Resíduos")
+    plt.title("Regressão Linear - Resíduos vs Previsões")
+    plt.grid(True)
+    plt.savefig("projeto/estatisticas/regressao_linear/rl_scat_pred_vs_resi.png", dpi=300)
+    plt.close()
+
+    # histograma: resíduos
+    plt.figure(figsize=(6, 6))
+    plt.hist(residuos, bins=50)
+    plt.xlabel("Erro")
+    plt.ylabel("Frequência")
+    plt.title("Regressão Linear - Distribuição dos Resíduos")
+    plt.grid(True)
+    plt.savefig("projeto/estatisticas/regressao_linear/rl_hist_resi.png", dpi=300)
+    plt.close()
 
     if salvar_modelo:
         joblib.dump(modelo, 'projeto/modelos/regressao_linear.joblib')
@@ -195,8 +231,18 @@ def regressao_statsmodels(X_train, X_test, y_train, y_test, salvar_modelo=True):
     print(f"R² (Coeficiente de Determinação): {r2:.3f}")
     print(modelo.summary())
 
+    # plots:
+
+    # qq plot: resíduos
+    residuos = y_test - y_pred
+    sm.qqplot(residuos, line='45')
+    plt.title("StatsModels - QQ Plot dos Resíduos")
+    plt.grid(True)
+    plt.savefig("projeto/estatisticas/regressao_linear_statsmodels/rlsm_qqplot_resi.png", dpi=300)
+    plt.close()
+
     if salvar_modelo:
-        caminho_summary = "projeto/modelos/statsmodels_regressao_linear_summary.txt"
+        caminho_summary = "projeto/estatisticas/regressao_linear_statsmodels/rlsm_summary.txt"
         with open(caminho_summary, "w", encoding="utf-8") as f:
             f.write(str(modelo.summary()))
 
@@ -252,7 +298,7 @@ def random_forest(X_train, X_test, y_train, y_test, salvar_modelo=True):
 
     if salvar_modelo:
         joblib.dump(modelo, 'projeto/modelos/random_forest.joblib')
-        caminho_relatorio = "projeto/modelos/random_forest_summary.txt"
+        caminho_relatorio = "projeto/estatisticas/random_forest/rf_summary.txt"
         with open(caminho_relatorio, "w", encoding="utf-8") as f:
             f.write("=== Random Forest ===\n\n")
             f.write(f"MAE : {mae:.3f}\n")
@@ -287,11 +333,11 @@ if __name__ == "__main__":
     treinar_regressao_statsmodels = True
     treinar_random_forest = True
 
-    # verificação dos arquivos já existentes
+    # verificação dos arquivos de dados já existentes
     arquivos_existentes = all([
-        os.path.exists('projeto/arquivos/enem2023_filtrado.csv'),
-        os.path.exists('projeto/arquivos/enem2023_socio_processado.csv'),
-        os.path.exists('projeto/arquivos/enem2023_nota_mt.csv')
+        os.path.exists('projeto/dados/enem2023_filtrado.csv'),
+        os.path.exists('projeto/dados/enem2023_socio_processado.csv'),
+        os.path.exists('projeto/dados/enem2023_nota_mt.csv')
     ])
 
     # tratamento dos dados
@@ -303,8 +349,8 @@ if __name__ == "__main__":
         print("\nTratamento dos dados concluído")
     else:
         print("\nObtendo dados...")
-        X_proc = pd.read_csv('projeto/arquivos/enem2023_socio_processado.csv', sep=';')
-        y = pd.read_csv('projeto/arquivos/enem2023_nota_mt.csv', sep=';')['NU_NOTA_MT']
+        X_proc = pd.read_csv('projeto/dados/enem2023_socio_processado.csv', sep=';')
+        y = pd.read_csv('projeto/dados/enem2023_nota_mt.csv', sep=';')['NU_NOTA_MT']
 
     # treinamento dos modelos
     X_train, X_test, y_train, y_test = train_test_split( X_proc, y, test_size=0.2, random_state=42 )
