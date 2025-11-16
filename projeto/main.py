@@ -10,6 +10,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 plt.style.use('default')
 
@@ -309,13 +311,54 @@ def random_forest(X_train, X_test, y_train, y_test, tam_amostra, usar_gridsearch
     print(f"RMSE (Raiz do Erro Quadrático Médio): {rmse:.3f}")
     print(f"R²   (Coeficiente de Determinação): {r2:.3f}")
 
-    # importância das features/variáveis
+    # plots:
+
+    # scatter: previsões vs real
+    plt.figure(figsize=(6, 6))
+    plt.scatter(y_test, y_pred, s=2)
+    plt.xlabel("Valores Reais")
+    plt.ylabel("Previsões")
+    plt.title("Random Forest - Previsões vs Reais")
+    plt.grid(True)
+    plt.savefig("projeto/estatisticas/random_forest/rf_scat_pred_vs_real.png", dpi=300)
+    plt.close()
+
+    # scatter: previsões vs resíduos
+    residuos = y_test - y_pred
+    plt.figure(figsize=(6, 6))
+    plt.scatter(y_pred, residuos, s=2)
+    plt.axhline(0, color="black")
+    plt.xlabel("Previsões")
+    plt.ylabel("Resíduos")
+    plt.title("Random Forest - Resíduos vs Previsões")
+    plt.grid(True)
+    plt.savefig("projeto/estatisticas/random_forest/rf_scat_pred_vs_resi.png", dpi=300)
+    plt.close()
+
+    # histograma: resíduos
+    plt.figure(figsize=(6, 6))
+    plt.hist(residuos, bins=50)
+    plt.xlabel("Erro")
+    plt.ylabel("Frequência")
+    plt.title("Random Forest - Distribuição dos Resíduos")
+    plt.grid(True)
+    plt.savefig("projeto/estatisticas/random_forest/rf_hist_resi.png", dpi=300)
+    plt.close()
+
+    # importancias das features (top15)
     importancias = pd.DataFrame({
         "Variável": X_train.columns,
         "Importância": modelo.feature_importances_
     }).sort_values(by="Importância", ascending=False)
-    print("\nTop variáveis mais importantes:")
-    print(importancias.head(10))
+    plt.figure(figsize=(10, 6))
+    top15 = importancias.head(15)
+    plt.barh(top15["Variável"], top15["Importância"])
+    plt.xlabel("Importância")
+    plt.title("Random Forest - Top 15 Variáveis Mais Importantes")
+    plt.gca().invert_yaxis()
+    plt.grid(True)
+    plt.savefig("projeto/estatisticas/random_forest/rf_feature_importance.png", dpi=300)
+    plt.close()
 
     if salvar_modelo:
         joblib.dump(modelo, 'projeto/modelos/random_forest.joblib')
