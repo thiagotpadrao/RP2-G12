@@ -1,37 +1,38 @@
 === Random Forest ===
 
-MAE : 88.307
-RMSE: 112.553
-R²  : 0.270
+MAE : 88.236
+RMSE: 112.429
+R²  : 0.271
 
 === Hiperparâmetros do Modelo ===
-{'bootstrap': True, 'ccp_alpha': 0.0, 'criterion': 'squared_error', 'max_depth': 20, 'max_features': 'sqrt', 'max_leaf_nodes': None, 'max_samples': None, 'min_impurity_decrease': 0.0, 'min_samples_leaf': 2, 'min_samples_split': 4, 'min_weight_fraction_leaf': 0.0, 'monotonic_cst': None, 'n_estimators': 300, 'n_jobs': 2, 'oob_score': False, 'random_state': 42, 'verbose': 0, 'warm_start': False}
+{'bootstrap': True, 'ccp_alpha': 0.0, 'criterion': 'squared_error', 'max_depth': 20, 'max_features': 'sqrt', 'max_leaf_nodes': None, 'max_samples': None, 'min_impurity_decrease': 0.0, 'min_samples_leaf': 4, 'min_samples_split': 10, 'min_weight_fraction_leaf': 0.0, 'monotonic_cst': None, 'n_estimators': 300, 'n_jobs': 2, 'oob_score': False, 'random_state': 42, 'verbose': 0, 'warm_start': False}
 
+--> GridSearch Executado: False
 === Importância das Variáveis ===
  Variável  Importância
-     Q006     0.177908
-     Q024     0.105038
-     Q003     0.074321
-     Q002     0.064552
-     Q001     0.062803
-     Q004     0.052589
-     Q005     0.049947
-     Q010     0.044021
-     Q008     0.042208
-     Q022     0.036525
-     Q019     0.033232
-TP_ESCOLA     0.032586
-     Q009     0.029460
-     Q013     0.027052
-     Q016     0.021947
-     Q018     0.021543
-     Q011     0.020874
-     Q021     0.016404
-     Q014     0.016333
-     Q007     0.014669
-     Q020     0.013262
-     Q015     0.012833
-     Q023     0.010641
-     Q012     0.008691
-     Q025     0.005402
-     Q017     0.005159
+     Q006     0.207788
+     Q024     0.121728
+     Q003     0.080921
+     Q002     0.065502
+     Q001     0.060243
+     Q004     0.053673
+     Q010     0.044594
+     Q008     0.043302
+     Q005     0.041383
+TP_ESCOLA     0.032216
+     Q022     0.030537
+     Q019     0.027278
+     Q013     0.026157
+     Q009     0.023010
+     Q018     0.022621
+     Q016     0.020634
+     Q011     0.016322
+     Q021     0.013975
+     Q014     0.013682
+     Q007     0.012671
+     Q020     0.009856
+     Q015     0.009775
+     Q023     0.007788
+     Q012     0.005911
+     Q025     0.004947
+     Q017     0.003485

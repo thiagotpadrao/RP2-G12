@@ -7,6 +7,7 @@ from sklearn.impute import SimpleImputer
 import joblib
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
@@ -251,29 +252,49 @@ def regressao_statsmodels(X_train, X_test, y_train, y_test, salvar_modelo=True):
 #===============#
 # Random Forest #
 #===============#
-def random_forest(X_train, X_test, y_train, y_test, salvar_modelo=True):
+def random_forest(X_train, X_test, y_train, y_test, tam_amostra, usar_gridsearch=False, salvar_modelo=True):
     print("\nTreinando modelo de Random Forest...")
 
-    # VER DE USAR GRIDSEARCH (OU PARECIDO) PARA DECIDIR OS HIPERPARAMETROS
-
-    # inicializa o modelo
-    modelo = RandomForestRegressor(
-        n_estimators=300,        # mais árvores → melhor estabilidade e precisão
-        max_depth=20,            # árvores mais profundas captam relações não lineares
-        min_samples_split=4,     # evita overfitting leve
-        min_samples_leaf=2,      # reduz variância
-        max_features='sqrt',     # mantém eficiência e diversidade entre árvores
-        bootstrap=True,          # amostragem aleatória melhora generalização
-        random_state=42,
-        n_jobs=2                # usa todos os núcleos disponíveis
-    )
-
     # pegando uma amostra dos dados
-    X_train_sample = X_train.sample(n=100000, random_state=42)
+    X_train_sample = X_train.sample(n=tam_amostra, random_state=42)
     y_train_sample = y_train.loc[X_train_sample.index]
 
-    # treinamento
-    modelo.fit(X_train_sample, y_train_sample)
+    # realiza (ou não) o grid search
+    if not usar_gridsearch:
+        print("Treinamento SEM GridSearch")
+        modelo = RandomForestRegressor(
+            n_estimators=300,        # numero de arvores na floresta
+            max_depth=20,            # profundidade máxima das árvores
+            min_samples_split=10,    # mínimo de amostras para dividir um nó
+            min_samples_leaf=4,      # tamanho mínimo de cada folha
+            max_features='sqrt',     # quantas features são consideradas por split
+            bootstrap=True,          # usar amostragem bootstrap ou não
+            random_state=42,         # semente para reprodução dos resultados
+            n_jobs=2                 # quantidade de núcleos usados
+        )
+        modelo.fit(X_train_sample, y_train_sample)
+    else:
+        print("Treinamento COM GridSearch")
+        modelo_base = RandomForestRegressor(random_state=42, n_jobs=2)
+        grid = {
+            "n_estimators": [150, 300],
+            "max_depth": [10, 20, None],
+            "min_samples_split": [2, 4],
+            "min_samples_leaf": [1, 2],
+            "max_features": ["sqrt", "log2"]
+        }
+        gridsearch = GridSearchCV(
+            estimator=modelo_base,
+            param_grid=grid,
+            scoring="neg_mean_absolute_error",
+            cv=3,
+            verbose=1,
+            n_jobs=2
+        )
+        gridsearch.fit(X_train_sample, y_train_sample)
+        modelo = gridsearch.best_estimator_
+        print("\nMelhores parâmetros encontrados:")
+        print(gridsearch.best_params_, "\n")
 
     # previsões
     y_pred = modelo.predict(X_test)
@@ -306,6 +327,7 @@ def random_forest(X_train, X_test, y_train, y_test, salvar_modelo=True):
             f.write(f"R²  : {r2:.3f}\n\n")
             f.write("=== Hiperparâmetros do Modelo ===\n")
             f.write(str(modelo.get_params()) + "\n\n")
+            f.write(f"--> GridSearch Executado: {usar_gridsearch}\n")
             f.write("=== Importância das Variáveis ===\n")
             f.write(importancias.to_string(index=False))
             f.write("\n")
@@ -327,11 +349,19 @@ if __name__ == "__main__":
     ]
     variavel_alvo = 'NU_NOTA_MT'
 
-    # configurações da execução do código
-    refazer_tratamento_dados = True
-    treinar_regressao_linear = True
-    treinar_regressao_statsmodels = True
+    # ================ configurações da execução do código ================
+    # tratamento dos dados
+    refazer_tratamento_dados = False
+    
+    # regressão linear
+    treinar_regressao_linear = False
+    treinar_regressao_statsmodels = False
+    
+    # random forest
     treinar_random_forest = True
+    tamanho_amostra_rf = 100000
+    usar_grid_search = False
+    # =====================================================================
 
     # verificação dos arquivos de dados já existentes
     arquivos_existentes = all([
@@ -359,7 +389,7 @@ if __name__ == "__main__":
         modelo_rl, y_pred_rl = regressao_linear(X_train, X_test, y_train, y_test)
     
     if treinar_random_forest:
-        modelo_rf, y_pred_rf = random_forest(X_train, X_test, y_train, y_test)
+        modelo_rf, y_pred_rf = random_forest(X_train, X_test, y_train, y_test, tamanho_amostra_rf, usar_grid_search)
 
     if treinar_regressao_statsmodels:
         modelo_rl_sm, y_pred_rl_sm = regressao_statsmodels(X_train, X_test, y_train, y_test)
