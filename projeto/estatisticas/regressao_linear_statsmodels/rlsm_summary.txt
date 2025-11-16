@@ -3,8 +3,8 @@
 Dep. Variable:             NU_NOTA_MT   R-squared:                       0.257
 Model:                            OLS   Adj. R-squared:                  0.257
 Method:                 Least Squares   F-statistic:                 2.868e+04
-Date:                Sat, 15 Nov 2025   Prob (F-statistic):               0.00
-Time:                        20:00:39   Log-Likelihood:            -1.3247e+07
+Date:                Sun, 16 Nov 2025   Prob (F-statistic):               0.00
+Time:                        20:40:12   Log-Likelihood:            -1.3247e+07
 No. Observations:             2153941   AIC:                         2.649e+07
 Df Residuals:                 2153914   BIC:                         2.650e+07
 Df Model:                          26                                         

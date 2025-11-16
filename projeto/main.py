@@ -8,6 +8,7 @@ import joblib
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import KFold
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 import matplotlib
@@ -146,16 +147,56 @@ def preparar_dados_para_modelagem(df, variaveis_socio, variavel_alvo):
 #==================#
 # Regressão Linear #
 #==================#
-def regressao_linear(X_train, X_test, y_train, y_test, salvar_modelo=True):
+def regressao_linear(X_train, X_test, y_train, y_test, numero_folds, usar_cross_validation=False, salvar_modelo=True):
     print("\nTreinando modelo de Regressão Linear...")
 
-    # inicializa o modelo
+    # realiza (ou não) o cross validation k-fold
+    if usar_cross_validation:
+        print("\nIniciando treinamento COM cross validation K-fold...")
+
+        kf = KFold(n_splits=numero_folds, shuffle=True, random_state=42)
+        maes, rmses, r2s = [], [], []
+        fold = 1
+
+        for train_idx, test_idx in kf.split(X_train):
+            print(f"\n--- Fold {fold} ---")
+
+            X_tr, X_te = X_train.iloc[train_idx], X_train.iloc[test_idx]
+            y_tr, y_te = y_train.iloc[train_idx], y_train.iloc[test_idx]
+
+            # inicialização treinamento e predição
+            modelo = LinearRegression()
+            modelo.fit(X_tr, y_tr)
+            y_pred_fold = modelo.predict(X_te)
+
+            # métricas
+            mae = mean_absolute_error(y_te, y_pred_fold)
+            rmse = np.sqrt(mean_squared_error(y_te, y_pred_fold))
+            r2 = r2_score(y_te, y_pred_fold)
+
+            print(f"MAE  : {mae:.3f}")
+            print(f"RMSE : {rmse:.3f}")
+            print(f"R²   : {r2:.3f}")
+
+            maes.append(mae)
+            rmses.append(rmse)
+            r2s.append(r2)
+
+            fold += 1
+
+        print("\n=== Médias das métricas dos folds ===")
+        print(f"MAE Médio: {np.mean(maes):.3f}")
+        print(f"RMSE Médio: {np.mean(rmses):.3f}")
+        print(f"R² Médio: {np.mean(r2s):.3f}")
+
+    else:
+        print("\nIniciando treinamento SEM cross validation K-fold...")
+
+    # treinamento final com todo X train:
+
+    # inicialização treinamento e predição
     modelo = LinearRegression()
-
-    # treinamento
     modelo.fit(X_train, y_train)
-
-    # previsões
     y_pred = modelo.predict(X_test)
 
     # métricas
@@ -210,18 +251,56 @@ def regressao_linear(X_train, X_test, y_train, y_test, salvar_modelo=True):
 #=======================================#
 # Regressão Linear (usando statsmodels) #
 #=======================================#
-def regressao_statsmodels(X_train, X_test, y_train, y_test, salvar_modelo=True):
+def regressao_statsmodels(X_train, X_test, y_train, y_test, numero_folds, usar_cross_validation=False, salvar_modelo=True):
     print("\nTreinando modelo de Regressão Linear (StatsModels)...")
 
-    # adiciona a constante (intercepto)
-    X_train_sm = sm.add_constant(X_train)
-    X_test_sm = sm.add_constant(X_test)
+    # realiza (ou não) o cross validation k-fold
+    if usar_cross_validation:
+        print("\nIniciando treinamento COM cross validation K-fold...")
 
-    # treinamento
-    modelo = sm.OLS(y_train, X_train_sm).fit()
+        kf = KFold(n_splits=numero_folds, shuffle=True, random_state=42)
+        maes, rmses, r2s = [], [], []
+        fold = 1
 
-    # previsões
-    y_pred = modelo.predict(X_test_sm)
+        for train_idx, val_idx in kf.split(X_train):
+
+            print(f"\n--- Fold {fold} ---")
+
+            X_tr, X_te = X_train.iloc[train_idx], X_train.iloc[val_idx]
+            y_tr, y_te = y_train.iloc[train_idx], y_train.iloc[val_idx]
+
+            # inicialização treinamento e predição
+            modelo = sm.OLS(y_tr, sm.add_constant(X_tr)).fit()
+            y_pred_fold = modelo.predict(sm.add_constant(X_te))
+
+            # métricas
+            mae = mean_absolute_error(y_te, y_pred_fold)
+            rmse = np.sqrt(mean_squared_error(y_te, y_pred_fold))
+            r2 = r2_score(y_te, y_pred_fold)
+
+            print(f"MAE  : {mae:.3f}")
+            print(f"RMSE : {rmse:.3f}")
+            print(f"R²   : {r2:.3f}")
+
+            maes.append(mae)
+            rmses.append(rmse)
+            r2s.append(r2)
+
+            fold += 1
+
+        print("\n=== Médias das métricas dos folds ===")
+        print(f"MAE Médio: {np.mean(maes):.3f}")
+        print(f"RMSE Médio: {np.mean(rmses):.3f}")
+        print(f"R² Médio: {np.mean(r2s):.3f}")
+
+    else:
+        print("\nIniciando treinamento SEM cross validation K-fold...")
+
+    # treinamento final com todo X train:
+
+    # inicialização treinamento e predição
+    modelo = sm.OLS(y_train, sm.add_constant(X_train)).fit()
+    y_pred = modelo.predict(sm.add_constant(X_test))
 
     # métricas
     mae = mean_absolute_error(y_test, y_pred)
@@ -254,14 +333,14 @@ def regressao_statsmodels(X_train, X_test, y_train, y_test, salvar_modelo=True):
 #===============#
 # Random Forest #
 #===============#
-def random_forest(X_train, X_test, y_train, y_test, tam_amostra, usar_gridsearch=False, salvar_modelo=True):
+def random_forest(X_train, X_test, y_train, y_test, tam_amostra, usar_gridsearch=False, usar_cross_validation=False, numero_folds=5, salvar_modelo=True):
     print("\nTreinando modelo de Random Forest...")
 
     # pegando uma amostra dos dados
     X_train_sample = X_train.sample(n=tam_amostra, random_state=42)
     y_train_sample = y_train.loc[X_train_sample.index]
 
-    # realiza (ou não) o grid search
+    # escolhe o modelo base (com ou sem gridsearch)
     if not usar_gridsearch:
         print("Treinamento SEM GridSearch")
         modelo = RandomForestRegressor(
@@ -297,6 +376,52 @@ def random_forest(X_train, X_test, y_train, y_test, tam_amostra, usar_gridsearch
         modelo = gridsearch.best_estimator_
         print("\nMelhores parâmetros encontrados:")
         print(gridsearch.best_params_, "\n")
+
+    # realiza (ou não) o cross validation k-fold
+    if usar_cross_validation:
+        print("\nIniciando treinamento COM cross validation K-fold...")
+       
+        kf = KFold(n_splits=numero_folds, shuffle=True, random_state=42)
+        maes, rmses, r2s = [], [], []
+        fold = 1
+
+        for train_idx, val_idx in kf.split(X_train_sample):
+            print(f"\n--- Fold {fold} ---")
+
+            X_tr, X_val = X_train_sample.iloc[train_idx], X_train_sample.iloc[val_idx]
+            y_tr, y_val = y_train_sample.iloc[train_idx], y_train_sample.iloc[val_idx]
+
+            # inicialização treinamento e predição
+            modelo.fit(X_tr, y_tr)
+            y_pred_val = modelo.predict(X_val)
+
+            # métricas
+            mae = mean_absolute_error(y_val, y_pred_val)
+            rmse = np.sqrt(mean_squared_error(y_val, y_pred_val))
+            r2 = r2_score(y_val, y_pred_val)
+
+            print(f"MAE  : {mae:.3f}")
+            print(f"RMSE : {rmse:.3f}")
+            print(f"R²   : {r2:.3f}")
+
+            maes.append(mae)
+            rmses.append(rmse)
+            r2s.append(r2)
+
+            fold += 1
+
+        print("\n=== Médias das métricas dos folds ===")
+        print(f"MAE Médio: {np.mean(maes):.3f}")
+        print(f"RMSE Médio: {np.mean(rmses):.3f}")
+        print(f"R² Médio: {np.mean(r2s):.3f}")
+
+        # treina o modelo final com todo o conjunto
+        modelo.fit(X_train_sample, y_train_sample)
+
+        # não faz plots nem métricas do X_test quando está em CV
+        return modelo, None
+    else:
+        print("\nIniciando treinamento SEM cross validation K-fold...")
 
     # previsões
     y_pred = modelo.predict(X_test)
@@ -397,13 +522,21 @@ if __name__ == "__main__":
     refazer_tratamento_dados = False
     
     # regressão linear
-    treinar_regressao_linear = False
+    treinar_regressao_linear = True
+    rl_usar_cross_valid_kfold = True
+    rl_num_folds = 10
+
+    # regressão linear (com statsmodels)
     treinar_regressao_statsmodels = False
+    rlsm_usar_cross_valid_kfold = True
+    rlsm_num_folds = 10
     
     # random forest
-    treinar_random_forest = True
-    tamanho_amostra_rf = 100000
-    usar_grid_search = False
+    treinar_random_forest = False
+    rf_tamanho_amostra= 100000
+    rf_usar_grid_search = False
+    rf_usar_cross_valid_kfold = True
+    rf_num_folds = 10
     # =====================================================================
 
     # verificação dos arquivos de dados já existentes
@@ -429,10 +562,10 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = train_test_split( X_proc, y, test_size=0.2, random_state=42 )
     
     if treinar_regressao_linear:
-        modelo_rl, y_pred_rl = regressao_linear(X_train, X_test, y_train, y_test)
+        modelo_rl, y_pred_rl = regressao_linear(X_train, X_test, y_train, y_test, rl_num_folds, rl_usar_cross_valid_kfold)
     
     if treinar_random_forest:
-        modelo_rf, y_pred_rf = random_forest(X_train, X_test, y_train, y_test, tamanho_amostra_rf, usar_grid_search)
+        modelo_rf, y_pred_rf = random_forest(X_train, X_test, y_train, y_test, rf_tamanho_amostra, rf_usar_grid_search, rf_usar_cross_valid_kfold, rf_num_folds)
 
     if treinar_regressao_statsmodels:
-        modelo_rl_sm, y_pred_rl_sm = regressao_statsmodels(X_train, X_test, y_train, y_test)
+        modelo_rl_sm, y_pred_rl_sm = regressao_statsmodels(X_train, X_test, y_train, y_test, rlsm_num_folds, rlsm_usar_cross_valid_kfold)
