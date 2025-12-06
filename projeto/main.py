@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import statsmodels.api as sm
 import os
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
 import joblib
@@ -116,10 +117,44 @@ def mapear_variaveis_categoricas(df):
 
     return df_mapped
 
+#======================#
+# Remoção de outliers  #
+#======================#
+def remover_outliers_iqr(df, variaveis_socio, variavel_alvo):
+    df_clean = df.copy()
+
+    variaveis_para_filtrar = [variavel_alvo]
+
+    for col in variaveis_para_filtrar:
+        if col not in df_clean.columns:
+            continue
+
+        Q1 = df_clean[col].quantile(0.25)
+        Q3 = df_clean[col].quantile(0.75)
+        IQR = Q3 - Q1
+
+        limite_inferior = Q1 - 1.5 * IQR
+        limite_superior = Q3 + 1.5 * IQR
+
+        df_clean = df_clean[(df_clean[col] >= limite_inferior) & (df_clean[col] <= limite_superior)]
+
+    df_clean.reset_index(drop=True, inplace=True)
+
+    print(f"\nRemoção de outliers concluída. Tamanho original: {df.shape}, após limpeza: {df_clean.shape}")
+    return df_clean
+
 #=======================================#
 # Preparação dos dados para treinamento #
 #=======================================#
-def preparar_dados_para_modelagem(df, variaveis_socio, variavel_alvo):
+def preparar_dados_para_modelagem(df, variaveis_socio, variavel_alvo, remover_outliers=False):
+
+    # remoção de outliers
+    if remover_outliers:
+        print("\nRemovendo outliers...")
+        df = remover_outliers_iqr(df, variaveis_socio, variavel_alvo)
+    else:
+        print("\nOutliers não foram removidos")
+
     X = df[variaveis_socio].copy()
     y = pd.to_numeric(df[variavel_alvo], errors='coerce')
 
@@ -143,6 +178,58 @@ def preparar_dados_para_modelagem(df, variaveis_socio, variavel_alvo):
     print("\nDados prontos!")
 
     return X_proc, y
+
+#=====#
+# VIF #
+#=====#
+def calcular_vif(X, limiar_vif=10.0, salvar_relatorio=True, caminho_relatorio='projeto/estatisticas/vif'):
+   
+    X_vif = X.copy()
+    X_vif = X_vif.astype(float) # garante que seja float numeric
+
+    def _calc_vif_df(Xframe):
+        vif_values = []
+        for i in range(Xframe.shape[1]):
+            try:
+                vif_i = variance_inflation_factor(Xframe.values, i)
+            except Exception:
+                vif_i = np.inf
+            vif_values.append(vif_i)
+        df_vif = pd.DataFrame({
+            'variavel': Xframe.columns,
+            'VIF': vif_values
+        }).sort_values('VIF', ascending=False).reset_index(drop=True)
+        return df_vif
+
+    df_vif_inicial = _calc_vif_df(X_vif)
+    if salvar_relatorio:
+        df_vif_inicial.to_csv(os.path.join(caminho_relatorio, 'vif_inicial.csv'), index=False, sep=';')
+
+    variaveis_removidas = []
+    iteracao = 0
+
+    # itera removendo a variável com maior VIF enquanto existir > limiar
+    while True:
+        df_vif = _calc_vif_df(X_vif)
+        max_vif = df_vif['VIF'].max()
+        variavel_max = df_vif.loc[df_vif['VIF'].idxmax(), 'variavel']
+
+        print(f"[VIF] Iteração {iteracao} - max VIF = {max_vif:.3f} (variável: {variavel_max})")
+        if max_vif <= limiar_vif or X_vif.shape[1] <= 1:
+            # condição de parada
+            df_vif_final = df_vif.copy()
+            break
+
+        # remove a variável com maior VIF
+        variaveis_removidas.append(variavel_max)
+        X_vif = X_vif.drop(columns=[variavel_max])
+        iteracao += 1
+
+    if salvar_relatorio:
+        df_vif_final.to_csv(os.path.join(caminho_relatorio, 'vif_final.csv'), index=False, sep=';')
+        pd.DataFrame({'variaveis_removidas': variaveis_removidas}).to_csv(os.path.join(caminho_relatorio, 'vif_variaveis_removidas.csv'), index=False, sep=';')
+    print("[VIF] concluído. Variáveis removidas:", variaveis_removidas)
+    return X_vif, variaveis_removidas, df_vif_inicial, df_vif_final 
 
 #==================#
 # Regressão Linear #
@@ -520,9 +607,14 @@ if __name__ == "__main__":
     # ================ configurações da execução do código ================
     # tratamento dos dados
     refazer_tratamento_dados = False
+    remover_outliers = False
+
+    # VIF
+    executar_vif = False
+    limiar_vif = 3.0
     
     # regressão linear
-    treinar_regressao_linear = True
+    treinar_regressao_linear = False
     rl_usar_cross_valid_kfold = True
     rl_num_folds = 10
 
@@ -532,7 +624,7 @@ if __name__ == "__main__":
     rlsm_num_folds = 10
     
     # random forest
-    treinar_random_forest = False
+    treinar_random_forest = True
     rf_tamanho_amostra= 100000
     rf_usar_grid_search = False
     rf_usar_cross_valid_kfold = True
@@ -551,12 +643,23 @@ if __name__ == "__main__":
         print("\nExecutando tratamento dos dados...")
         dados = ler_e_filtrar_dados(caminho_arquivo, variaveis_socio, variavel_alvo)
         df_mapped = mapear_variaveis_categoricas(dados)
-        X_proc, y = preparar_dados_para_modelagem(df_mapped, variaveis_socio, variavel_alvo)
+        X_proc, y = preparar_dados_para_modelagem(df_mapped, variaveis_socio, variavel_alvo, remover_outliers)
         print("\nTratamento dos dados concluído")
     else:
         print("\nObtendo dados...")
         X_proc = pd.read_csv('projeto/dados/enem2023_socio_processado.csv', sep=';')
         y = pd.read_csv('projeto/dados/enem2023_nota_mt.csv', sep=';')['NU_NOTA_MT']
+
+    # VIF
+    if executar_vif:
+        print("\nExecutando cálculo/eliminação por VIF...")
+        X_proc_reduzido, variaveis_removidas, df_vif_ini, df_vif_fin = calcular_vif(X_proc, limiar_vif, salvar_relatorio=True)
+        X_proc_reduzido.to_csv('projeto/dados/enem2023_socio_processado_vif_reduced.csv', index=False, sep=';')
+        X_proc = X_proc_reduzido.copy()
+        
+        print(f"Variáveis removidas: {len(variaveis_removidas)}; Variáveis finais: {len(X_proc.columns.tolist())}")
+    else:
+        print("\nPulando etapa VIF...")
 
     # treinamento dos modelos
     X_train, X_test, y_train, y_test = train_test_split( X_proc, y, test_size=0.2, random_state=42 )
